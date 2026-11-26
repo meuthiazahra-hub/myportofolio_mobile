@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:myportofolio_mobile/screens/project_form.dart';
 import 'package:myportofolio_mobile/screens/experience_form.dart';
 import 'package:myportofolio_mobile/screens/menu.dart';
+import 'package:myportofolio_mobile/screens/project_list_screen.dart';
 
 class ItemCard extends StatelessWidget {
   final ItemHomepage item;
@@ -22,6 +23,11 @@ class ItemCard extends StatelessWidget {
               context,
               MaterialPageRoute(builder: (context) => const ProjectFormPage()),
             );
+          } else if (item.name == "Look Project") {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ProjectListScreen()),
+            );
           } else {
             // Menampilkan SnackBar dengan pesan interaktif.
             ScaffoldMessenger.of(context)
@@ -31,15 +37,7 @@ class ItemCard extends StatelessWidget {
                   content: Text("Kamu telah menekan tombol ${item.name}!"),
                 ),
               );
-            if (item.name == "Add Project") {
-              // TODO: Use Navigator.push() with a MaterialPageRoute for ProjectFormPage
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const ProjectFormPage(),
-                ),
-              );
-            } else if (item.name == "Add Experience") {
+            if (item.name == "Add Experience") {
               Navigator.push(
                 context,
                 MaterialPageRoute(

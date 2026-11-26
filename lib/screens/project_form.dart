@@ -1,4 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:myportofolio_mobile/widgets/left_drawer.dart';
+import 'package:myportofolio_mobile/models/project.dart';
+import 'package:myportofolio_mobile/services/api_client.dart';
+import 'package:myportofolio_mobile/services/auth_state.dart';
+import 'package:myportofolio_mobile/screens/login_screen.dart';
+import 'package:provider/provider.dart';
 
 // TODO: Import the drawer created earlier
 
@@ -10,6 +16,8 @@ class ProjectFormPage extends StatefulWidget {
 }
 
 class _ProjectFormPageState extends State<ProjectFormPage> {
+  bool _isSubmitting = false;
+  bool _checkingAuth = true;
   final _formKey = GlobalKey<FormState>();
   String _projectName = "";
   String _description = "";
@@ -24,8 +32,84 @@ class _ProjectFormPageState extends State<ProjectFormPage> {
     'Data Science',
     'Other',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      if (context.read<AuthState>().isLoggedIn) {
+        setState(() => _checkingAuth = false);
+        return;
+      }
+      await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+      if (!mounted) return;
+      if (context.read<AuthState>().isLoggedIn) {
+        setState(() => _checkingAuth = false);
+      } else {
+        Navigator.pop(context);
+      }
+    });
+  }
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    _formKey.currentState!.save();
+
+    setState(() => _isSubmitting = true);
+    try {
+      final api = context.read<ApiClient>();
+
+      // TODO: ganti sesuai cara project kamu menyimpan token
+      // (misalnya AuthProvider / SharedPreferences)
+      final token = context.read<AuthState>().token;
+      if (token == null) {
+        throw const ApiException(401, 'Please log in before adding a project.');
+      }
+
+      final project = Project(
+        title: _projectName,
+        description: _description,
+        techStack: _technologies,
+        projectUrl: _projectLink,
+      );
+
+      final created = await api.createProject(project, token: token);
+
+      if (!mounted) return;
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Project added successfully!'),
+          content: Text(created.title),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+
+      if (!mounted) return;
+      _formKey.currentState!.reset();
+      setState(() => _category = _categories.first);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save: ${e.message}')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
   @override
   Widget build(BuildContext context) {
+    if (_checkingAuth) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     return Scaffold(
       appBar: AppBar(
         title: const Center(child: Text('Add Project Form')),
@@ -33,6 +117,7 @@ class _ProjectFormPageState extends State<ProjectFormPage> {
         foregroundColor: Colors.white,
       ),
       // TODO: Add the drawer we created earlier
+      drawer: const LeftDrawer(),
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
@@ -152,35 +237,7 @@ class _ProjectFormPageState extends State<ProjectFormPage> {
                     style: ButtonStyle(
                       backgroundColor: WidgetStateProperty.all(Colors.indigo),
                     ),
-                    onPressed: () {
-                      if (_formKey.currentState!.validate()) {
-                        _formKey.currentState!.save();
-                        showDialog(
-                          context: context,
-                          builder: (context) {
-                            return AlertDialog(
-                              title: const Text('Project added successfully!'),
-                              content: Text(
-                                '$_projectName\n'
-                                '$_description\n'
-                                'Category: $_category\n'
-                                'Technologies: $_technologies\n'
-                                'Link: $_projectLink',
-                              ),
-                              actions: [
-                                TextButton(
-                                  child: const Text('OK'),
-                                  onPressed: () {
-                                    Navigator.pop(context);
-                                    _formKey.currentState!.reset();
-                                  },
-                                ),
-                              ],
-                            );
-                          },
-                        );
-                      }
-                    },
+              onPressed: _isSubmitting ? null : _submit,
                     child: const Text(
                       "Save",
                       style: TextStyle(color: Colors.white),
@@ -195,3 +252,4 @@ class _ProjectFormPageState extends State<ProjectFormPage> {
     );
   }
 }
+
